@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>lang16-detector — NIPUNVARDHAN NAREDLA</title>
+  <meta name="description" content="A lightweight PyTorch model that classifies 16 different languages, running entirely in your browser via ONNX Runtime Web.">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="../../css/global.css">
+  <link rel="stylesheet" href="../../css/components.css">
+  <link rel="stylesheet" href="../../css/projects/research.css">
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='14' fill='%23fff' text-anchor='middle'%3ENN%3C/text%3E%3C/svg%3E">
+
+  <style>
+    /* ============================================================
+       DEMO — Interactive language detection
+       Styled to match the site's monochrome design system.
+       ============================================================ */
+    .demo-card {
+      border: var(--border-thin) solid var(--black);
+      background: var(--white);
+      padding: var(--space-8);
+    }
+
+    .demo-card__label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--gray);
+      margin-bottom: var(--space-4);
+    }
+
+    .demo-card__input {
+      width: 100%;
+      padding: var(--space-4);
+      border: var(--border-thin) solid var(--black);
+      border-radius: 0;
+      background: var(--white);
+      color: var(--near-black);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: 1.6;
+      resize: vertical;
+      margin-bottom: var(--space-6);
+      transition: border-color var(--duration-fast) var(--ease-out);
+    }
+
+    .demo-card__input:focus {
+      outline: none;
+      border-color: var(--black);
+      box-shadow: 4px 4px 0 0 var(--black);
+    }
+
+    .demo-card__input::placeholder {
+      color: var(--light-gray);
+    }
+
+    .demo-card__status {
+      margin-top: var(--space-6);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      color: var(--gray);
+      min-height: 1.5em;
+    }
+
+    .demo-card__result {
+      margin-top: var(--space-4);
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);
+      font-weight: 700;
+      color: var(--black);
+      min-height: 1.2em;
+    }
+
+    .demo-card__confidence {
+      margin-top: var(--space-2);
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      color: var(--gray);
+      min-height: 1.5em;
+    }
+
+    .demo-card__hint {
+      margin-top: var(--space-6);
+      padding-top: var(--space-6);
+      border-top: var(--border-thin) solid var(--off-white);
+      font-size: var(--text-sm);
+      color: var(--gray);
+      line-height: 1.6;
+    }
+
+    .demo-card__hint strong {
+      color: var(--black);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn:disabled:hover {
+      background: var(--white);
+      color: var(--black);
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <!-- Icon sprite -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <defs>
+      <symbol id="icon-github" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.78 0c2.21-1.49 3.18-1.18 3.18-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.77 1.05.77 2.12 0 1.53-.01 2.76-.01 3.14 0 .3.2.66.8.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/>
+      </symbol>
+      <symbol id="icon-linkedin" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45z"/>
+      </symbol>
+      <symbol id="icon-makerworld" viewBox="0 0 24 24">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" d="M3 19V5l9 10 9-10v14"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <!-- ================= HEADER ================= -->
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="site-header__logo" href="../../index.html">NIPUNVARDHAN NAREDLA</a>
+
+      <nav class="site-nav" id="site-nav" aria-label="Main navigation">
+        <a class="site-nav__link" href="../../index.html">Home</a>
+        <a class="site-nav__link" href="../../projects.html" aria-current="page">Work</a>
+        <a class="site-nav__link" href="../../about.html">About</a>
+      </nav>
+
+      <div class="site-header__socials">
+        <a class="social-link" href="https://github.com/Nipunvardhan-Naredla" aria-label="GitHub">
+          <svg><use href="#icon-github"/></svg>
+        </a>
+        <a class="social-link" href="https://linkedin.com/in/nipunvardhan-naredla" aria-label="LinkedIn">
+          <svg><use href="#icon-linkedin"/></svg>
+        </a>
+        <a class="social-link" href="https://makerworld.com/en/@NipunMakesStuff" aria-label="MakerWorld">
+          <svg><use href="#icon-makerworld"/></svg>
+        </a>
+      </div>
+
+      <button class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Toggle navigation menu">
+        <span class="nav-toggle__bar"></span>
+        <span class="nav-toggle__bar"></span>
+        <span class="nav-toggle__bar"></span>
+      </button>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ================= HERO ================= -->
+    <section class="research-hero">
+      <div class="container">
+        <div class="research-hero__meta">
+          <span class="tag">SOFTWARE</span>
+          <span class="tag">12/2025</span>
+        </div>
+        <h1 class="research-hero__title">lang16-detector</h1>
+        <p class="research-hero__question">
+          Can a lightweight LSTM model accurately classify text across 16 different languages?
+        </p>
+      </div>
+    </section>
+
+    <!-- ================= TRY IT ================= -->
+    <section class="research-section" aria-labelledby="demo-title">
+      <div class="container">
+        <h2 class="section-label" id="demo-title">Try It</h2>
+        <div class="research-section__body mb-8">
+          <p>
+            This demo runs a 6-layer LSTM model entirely in your browser via ONNX Runtime Web.
+            No data leaves your device — the model, tokenizer, and vocabulary are all loaded locally.
+          </p>
+        </div>
+
+        <div class="demo-card">
+          <label class="demo-card__label" for="text-input">Enter text in any of 16 languages:</label>
+          <textarea
+            id="text-input"
+            class="demo-card__input"
+            rows="3"
+            placeholder="e.g. Bonjour, comment allez-vous aujourd'hui ?"
+          ></textarea>
+
+          <button id="detect-btn" class="btn btn--solid" disabled>Detect Language</button>
+
+          <div id="status" class="demo-card__status">Loading…</div>
+          <div id="result" class="demo-card__result"></div>
+          <div id="confidence" class="demo-card__confidence"></div>
+
+          <p class="demo-card__hint">
+            <strong>Supported languages:</strong> Catalan, Danish, German, Greek, English, Esperanto,
+            Spanish, Finnish, French, Hungarian, Italian, Latin, Dutch, Portuguese, Swedish, Chinese.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= RESEARCH QUESTION ================= -->
+    <section class="research-section" aria-labelledby="question-title">
+      <div class="container">
+        <h2 class="section-label" id="question-title">Research Question</h2>
+        <div class="research-section__body">
+          <p>
+            Can I build a efficent language identification model?
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= METHODOLOGY ================= -->
+    <section class="research-section" aria-labelledby="methodology-title">
+      <div class="container">
+        <h2 class="section-label" id="methodology-title">Methodology</h2>
+        <div class="research-section__body mb-8">
+          <p>
+            The model is a 6-layer LSTM trained on character-level text. A WordPiece tokenizer
+            (bert base multilingiual uncased) converts input text into token IDs,
+            which are fed through the LSTM layers and a final classification head that outputs
+            a probability distribution over 16 language classes.
+          </p>
+        </div>
+
+        <div class="methodology">
+          <div class="method-step">
+            <span class="method-step__num">01</span>
+            <h3 class="method-step__title">Tokenization</h3>
+            <p class="method-step__desc">
+              Text is tokenized using a WordPiece vocabulary.
+              Sequences are truncated or padded to a fixed length of 15 tokens.
+            </p>
+          </div>
+          <div class="method-step">
+            <span class="method-step__num">02</span>
+            <h3 class="method-step__title">LSTM Encoding</h3>
+            <p class="method-step__desc">
+              Token IDs are embedded and passed through 6 stacked LSTM layers(around 4M total parameters).
+            </p>
+          </div>
+          <div class="method-step">
+            <span class="method-step__num">03</span>
+            <h3 class="method-step__title">Classification</h3>
+            <p class="method-step__desc">
+              The final hidden state goes through a linear layer to produce a final probability distribution of the 16 classes.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= DATA ================= -->
+    <section class="research-section" aria-labelledby="data-title">
+      <div class="container">
+        <h2 class="section-label" id="data-title">Data</h2>
+        <div class="research-section__body mb-8">
+          <p>
+            The model was trained on text samples across 16 languages. Each sample was
+            tokenized with the WordPiece vocabulary and formatted as fixed-length sequences
+            for the LSTM.
+          </p>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">LANGUAGE</th>
+                <th scope="col">CODE</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Catalan</td>
+                <td>ca</td>
+              </tr>
+              <tr>
+                <td>Danish</td>
+                <td>da</td>
+              </tr>
+              <tr>
+                <td>German</td>
+                <td>de</td>
+              </tr>
+              <tr>
+                <td>Greek</td>
+                <td>el</td>
+              </tr>
+              <tr>
+                <td>English</td>
+                <td>en</td>
+              </tr>
+              <tr>
+                <td>Esperanto</td>
+                <td>eo</td>
+              </tr>
+              <tr>
+                <td>Spanish</td>
+                <td>es</td>
+              </tr>
+              <tr>
+                <td>Finnish</td>
+                <td>fi</td>
+              </tr>
+              <tr>
+                <td>French</td>
+                <td>fr</td>
+              </tr>
+              <tr>
+                <td>Hungarian</td>
+                <td>hu</td>
+              </tr>
+              <tr>
+                <td>Italian</td>
+                <td>it</td>
+              </tr>
+              <tr>
+                <td>Latin</td>
+                <td>la</td>
+              </tr>
+              <tr>
+                <td>Dutch</td>
+                <td>nl</td>
+              </tr>
+              <tr>
+                <td>Portuguese</td>
+                <td>pt</td>
+              </tr>
+              <tr>
+                <td>Swedish</td>
+                <td>sv</td>
+              </tr>
+              <tr>
+                <td>Chinese</td>
+                <td>zh</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= EXPERIMENTS ================= -->
+    <section class="research-section" aria-labelledby="experiments-title">
+      <div class="container">
+        <h2 class="section-label" id="experiments-title">Experiments</h2>
+        <div class="research-section__body">
+          <p>
+            The model was trained in PyTorch and exported to ONNX format for browser deployment.
+            The exported model was then loaded into ONNX Runtime Web using the WebAssembly
+            execution provider, allowing inference to run entirely in a static webpage
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= RESULTS ================= -->
+    <section class="research-section" aria-labelledby="results-title">
+      <div class="container">
+        <h2 class="section-label" id="results-title">Results</h2>
+        <div class="research-section__body mb-8">
+          <p>
+            The model achieves pretty good classification accuracy across the 16 languages while
+            remaining lightweight enough to run in real time in a browser. The ONNX export
+            preserves the exact behavior of the PyTorch model, and the WebAssembly backend
+            delivers fast inference without requiring any server infrastructure.
+          </p>
+        </div>
+
+        <div class="results-grid mb-8">
+          <div class="result-stat">
+            <span class="result-stat__value">16</span>
+            <span class="result-stat__label">Languages</span>
+          </div>
+          <div class="result-stat">
+            <span class="result-stat__value">6</span>
+            <span class="result-stat__label">LSTM Layers</span>
+          </div>
+          <div class="result-stat">
+            <span class="result-stat__value">4M</span>
+            <span class="result-stat__label">Parameters</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= CONCLUSION ================= -->
+    <section class="research-section" aria-labelledby="conclusion-title">
+      <div class="container">
+        <h2 class="section-label" id="conclusion-title">Conclusion</h2>
+        <div class="conclusion">
+          <p class="conclusion__text">
+            This project demonstrates that a compact LSTM model can deliver accurate
+            language identification across 16 languages. This shows that the same approach 
+            could be extended to more languages or adapted for other lightweight NLP tasks.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <div class="site-footer__top">
+        <div>
+          <p class="site-footer__brand">NIPUNVARDHAN NAREDLA</p>
+          <p class="site-footer__tagline">I build things to understand them.</p>
+        </div>
+        <nav class="site-footer__nav" aria-label="Footer navigation">
+          <a href="../../index.html">Home</a>
+          <a href="../../projects.html">Work</a>
+          <a href="../../about.html">About</a>
+        </nav>
+      </div>
+      <div class="site-footer__bottom">
+        <p class="site-footer__meta">© 2026 NIPUNVARDHAN NAREDLA</p>
+        <p class="site-footer__meta">BUILT WITH VANILLA HTML / CSS / JS</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="../../js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
+  <script src="tokenizer.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
